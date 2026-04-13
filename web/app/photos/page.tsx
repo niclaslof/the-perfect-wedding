@@ -3,18 +3,18 @@ import Hero from "@/app/components/ui/Hero";
 import Section from "@/app/components/ui/Section";
 import Card from "@/app/components/ui/Card";
 
-export default function InfoPage() {
+export default function PhotosPage() {
   return (
     <PageLayout maxWidth="max-w-4xl">
       <Hero
-        eyebrow="Information"
-        titleLine1="Bröllopsinfo"
-        intro="Här kommer all information om bröllopet — datum, plats, dresscode, schema och praktiska detaljer."
+        eyebrow="Minnen"
+        titleLine1="Foton"
+        intro="Dela och bläddra bland bröllopsfoton."
       />
-      <Section number="01" title="Detaljer">
+      <Section number="01" title="Galleri">
         <Card>
           <p className="text-stone-500 dark:text-stone-400 italic text-sm">
-            Detaljerad information låses upp efter du har svarat på din inbjudan (OSA).
+            Fotogalleri med uppladdning kommer i fas 6.
           </p>
         </Card>
       </Section>

@@ -1,15 +1,23 @@
+import PageLayout from "@/app/components/ui/PageLayout";
+import Hero from "@/app/components/ui/Hero";
+import Section from "@/app/components/ui/Section";
+import Card from "@/app/components/ui/Card";
+
 export default function ChatPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
-      <h1 className="text-3xl font-bold">Chat</h1>
-      <p className="mt-4 text-stone-600 dark:text-stone-400">
-        Realtids-chat med andra bröllopsgäster.
-      </p>
-      <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-8 dark:border-stone-800 dark:bg-stone-900">
-        <p className="text-stone-500 dark:text-stone-400 italic">
-          Chat kommer snart — kopplas till Supabase Realtime.
-        </p>
-      </div>
-    </div>
+    <PageLayout maxWidth="max-w-4xl">
+      <Hero
+        eyebrow="Kommunikation"
+        titleLine1="Chat"
+        intro="Realtids-chat med andra bröllopsgäster."
+      />
+      <Section number="01" title="Meddelanden">
+        <Card>
+          <p className="text-stone-500 dark:text-stone-400 italic text-sm">
+            Chat kopplas till Supabase Realtime i nästa fas.
+          </p>
+        </Card>
+      </Section>
+    </PageLayout>
   );
 }
