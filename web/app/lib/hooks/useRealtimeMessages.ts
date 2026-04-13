@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { supabase } from "@/app/lib/supabase";
 import type { ChatMessage } from "@/app/lib/types";
 
 type MessageWithGuest = ChatMessage & { guest?: { name: string } };
@@ -9,66 +8,52 @@ type MessageWithGuest = ChatMessage & { guest?: { name: string } };
 export function useRealtimeMessages(channelId: string | null, guestName?: string) {
   const [messages, setMessages] = useState<MessageWithGuest[]>([]);
   const [loading, setLoading] = useState(true);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastFetchRef = useRef<string>("");
 
-  // Load initial messages via API (gets guest names via join)
-  const loadMessages = useCallback(async () => {
+  // Load messages via API
+  const loadMessages = useCallback(async (silent = false) => {
     if (!channelId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/chat/messages?channel_id=${channelId}`);
       const data = await res.json();
-      setMessages(data.messages || []);
+      const fetched = data.messages || [];
+      // Only update if messages actually changed (avoids flickering)
+      const key = fetched.map((m: MessageWithGuest) => m.id).join(",");
+      if (key !== lastFetchRef.current) {
+        lastFetchRef.current = key;
+        setMessages((prev) => {
+          // Preserve optimistic messages that haven't been confirmed yet
+          const optimistic = prev.filter((m) => m.id.startsWith("optimistic-"));
+          const realIds = new Set(fetched.map((m: MessageWithGuest) => m.id));
+          const remainingOptimistic = optimistic.filter(
+            (m) => !fetched.some((f: MessageWithGuest) => f.content === m.content && f.guest?.name === m.guest?.name)
+          );
+          return [...fetched, ...remainingOptimistic];
+        });
+      }
     } catch {
       // Silently fail
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [channelId]);
 
+  // Initial load
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
 
-  // Subscribe to realtime — listen for INSERTs from OTHER clients
+  // Poll every 3 seconds for new messages (reliable, works everywhere)
   useEffect(() => {
     if (!channelId) return;
-
-    const channel = supabase
-      .channel(`chat:${channelId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-          filter: `channel_id=eq.${channelId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as ChatMessage;
-          // Add to messages if not already present (avoids duplicates from optimistic add)
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            // We don't have guest name from realtime payload, refetch
-            loadMessages();
-            return prev;
-          });
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
-
-    return () => {
-      supabase.removeChannel(channel);
-      channelRef.current = null;
-    };
+    const interval = setInterval(() => loadMessages(true), 3000);
+    return () => clearInterval(interval);
   }, [channelId, loadMessages]);
 
   // Send message: optimistic add + API call
   async function sendMessage(content: string, guestId?: string) {
     if (!channelId || !content.trim()) return;
 
-    // Optimistic: add message to UI immediately
     const optimisticMsg: MessageWithGuest = {
       id: `optimistic-${Date.now()}`,
       channel_id: channelId,
@@ -79,7 +64,6 @@ export function useRealtimeMessages(channelId: string | null, guestName?: string
     };
     setMessages((prev) => [...prev, optimisticMsg]);
 
-    // Send via API
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
@@ -88,13 +72,11 @@ export function useRealtimeMessages(channelId: string | null, guestName?: string
       });
       if (res.ok) {
         const data = await res.json();
-        // Replace optimistic message with real one
         setMessages((prev) =>
           prev.map((m) => (m.id === optimisticMsg.id ? data.message : m))
         );
       }
     } catch {
-      // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
     }
   }
