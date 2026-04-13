@@ -23,7 +23,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, loading: loadingMessages, sendMessage } = useRealtimeMessages(activeChannel);
+  const { messages, loading: loadingMessages, sendMessage } = useRealtimeMessages(activeChannel, guest?.name);
 
   useEffect(() => {
     fetch("/api/chat/channels")
@@ -44,7 +44,7 @@ export default function ChatPage() {
     e.preventDefault();
     if (!input.trim()) return;
     setSending(true);
-    await sendMessage(input.trim());
+    await sendMessage(input.trim(), guest?.guest_id);
     setInput("");
     setSending(false);
   }
